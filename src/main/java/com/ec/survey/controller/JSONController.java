@@ -1,0 +1,148 @@
+package com.ec.survey.controller;
+
+import com.ec.survey.exception.ForbiddenURLException;
+import com.ec.survey.model.Form;
+import com.ec.survey.model.LdapSearchResult;
+import com.ec.survey.model.administration.GlobalPrivilege;
+import com.ec.survey.model.administration.LocalPrivilege;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.ec.survey.exception.ForbiddenException;
+import com.ec.survey.exception.MessageException;
+import com.ec.survey.model.administration.User;
+import com.ec.survey.service.MailService;
+import com.ec.survey.tools.Constants;
+import com.ec.survey.tools.NotAgreedToPsException;
+import com.ec.survey.tools.NotAgreedToTosException;
+import com.ec.survey.tools.WeakAuthenticationException;
+
+import javax.naming.NamingException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.Arrays;
+import java.util.List;
+
+@Controller
+@RequestMapping("/logins")
+public class JSONController extends BasicController {
+	
+	@RequestMapping(method = {RequestMethod.GET, RequestMethod.HEAD})
+	public @ResponseBody String[] getLoginsJSON(HttpServletRequest request) {
+ 
+		String query = request.getParameter("term");
+		return administrationService.getLoginsForPrefix(query, null, false, 5);
+	}
+	
+	@RequestMapping(value = "/ECAS", method = {RequestMethod.GET, RequestMethod.HEAD})
+	public @ResponseBody String[] getECASLoginsJSON(HttpServletRequest request) {
+ 
+		String query = request.getParameter("term");
+		return ldapDBService.getECASLoginsForPrefix(query);
+	}
+
+	@GetMapping(value = "/usersJSON", headers="Accept=*/*")
+	public @ResponseBody String[] participantsSearch(HttpServletRequest request, HttpServletResponse response ) throws NamingException, NotAgreedToTosException, WeakAuthenticationException, NotAgreedToPsException, ForbiddenException, MessageException {
+		
+		User u = sessionService.getCurrentUser(request);
+		
+		String name = request.getParameter("name");
+		if (name != null) name = name.trim();
+		
+		String type = request.getParameter("type");
+		String first = request.getParameter("first");
+		if (first != null) first = first.trim();
+		String last = request.getParameter("last");
+		if (last != null) last = last.trim();
+		String email = request.getParameter(Constants.EMAIL);
+		if (email != null && email.length() > 0) {
+			email = email.trim();
+			if (!MailService.isValidEmailAddress(email)) {
+				response.setStatus(412);
+				return null;
+			}
+		}
+		String department = request.getParameter("department");
+		if (department != null) department = department.trim();
+		String order = request.getParameter("order");
+		
+		if (u.isExternal()) {
+			if (type != "external") {
+				response.setStatus(403);
+				return null;
+			}
+		}
+		
+		if (!type.equalsIgnoreCase("system"))
+		{
+			return ldapService.getECASLogins(name, department, type, first, last, email, order, 5);
+		} else {
+			return administrationService.getLoginsForPrefix(name, email, true, 5);			
+		}
+	}
+
+	@GetMapping(value = "/usersJSONVoter", headers="Accept=*/*")
+	public @ResponseBody List<LdapSearchResult> votersSearch(HttpServletRequest request, HttpServletResponse response ) throws Exception {
+
+		User user = sessionService.getCurrentUser(request);
+		Form form = sessionService.getFormFromSessionInfo(request);
+
+		sessionService.upgradePrivileges(form.getSurvey(), user, request);
+		int accessPrivilege = 0;
+		if (form.getSurvey().getOwner().getId().equals(user.getId())) {
+			accessPrivilege = 2;
+		} else if (user.getGlobalPrivileges().get(GlobalPrivilege.FormManagement) == 2) {
+			accessPrivilege = 2;
+		} else {
+			accessPrivilege = user.getLocalPrivileges().get(LocalPrivilege.ManageInvitations);
+		}
+
+		if (accessPrivilege < 1) {
+			throw new ForbiddenURLException();
+		}
+
+		String name = request.getParameter("name");
+		if (name != null) name = name.trim();
+
+		String type = request.getParameter("type");
+		String first = request.getParameter("first");
+		if (first != null) first = first.trim();
+		String last = request.getParameter("last");
+		if (last != null) last = last.trim();
+		String email = request.getParameter(Constants.EMAIL);
+		if (email != null && email.length() > 0) {
+			email = email.trim();
+			if (!MailService.isValidEmailAddress(email)) {
+				response.setStatus(412);
+				return null;
+			}
+		}
+		String department = request.getParameter("department");
+		if (department != null) department = department.trim();
+		String order = request.getParameter("order");
+
+		List<LdapSearchResult> ldqpUsers = ldapService.getECASLoginsAsList(name, department, type, first, last, email, order, 5);
+		return ldqpUsers;
+	}
+
+	@GetMapping(value = "/usersEmailJSON", headers="Accept=*/*")
+	public @ResponseBody String[] participantsEmailSearch(HttpServletRequest request, HttpServletResponse response ) throws NamingException, NotAgreedToTosException, WeakAuthenticationException, NotAgreedToPsException {
+		
+		User u = sessionService.getCurrentUser(request);
+		
+		String email = request.getParameter("emails");
+		String[] splittedEmails = Arrays.stream(email.split(";")).map(String::trim).toArray(String[]::new);
+		
+		for(String e : splittedEmails) {
+			if (!MailService.isValidEmailAddress(e)) {
+				response.setStatus(412);
+				return null;
+			}
+		}
+
+		return administrationService.checkLoginsForEmails(Arrays.asList(splittedEmails));
+	}
+}

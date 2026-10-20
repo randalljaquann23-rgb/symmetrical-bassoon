@@ -1,0 +1,75 @@
+package com.ec.survey.model;
+
+public class LdapSearchResult {
+
+	public LdapSearchResult(String login, String displayName, String organisation, String group, String fname, String lname, String mail, boolean isExternal) {
+		super();
+		this.login = login;
+		this.displayName = displayName;
+		this.organisation = organisation;
+		this.group = group;
+		this.fname = fname;
+		this.lname = lname;
+		this.mail = mail;
+		this.isExternal = isExternal;
+	}
+	public String getLogin() {
+		return login;
+	}
+	public void setLogin(String login) {
+		this.login = login;
+	}
+	public String getDisplayName() {
+		return displayName;
+	}
+	public void setDisplayName(String displayName) {
+		this.displayName = displayName;
+	}
+	public String getOrganisation() {
+		return organisation;
+	}
+	public void setOrganisation(String organisation) {
+		this.organisation = organisation;
+	}
+	public String getGroup() {
+		return group;
+	}
+	public void setGroup(String group) {
+		this.group = group;
+	}
+	public String getFname() {
+		return fname;
+	}
+	public void setFname(String fname) {
+		this.fname = fname;
+	}
+	public String getLname() {
+		return lname;
+	}
+	public void setLname(String lname) {
+		this.lname = lname;
+	}
+	public String getMail() {
+		return mail;
+	}
+	public void setMail(String mail) {
+		this.mail = mail;
+	}
+	public boolean getIsExternal() {
+		return isExternal;
+	}
+	public void setIsExternal(boolean external) {
+		this.isExternal = external;
+	}
+
+	private String login ;
+	private String displayName ;
+	private String organisation ;
+	private String group ;
+	private String fname ;
+	private String lname ;
+	private String mail;
+	private boolean isExternal;
+	
+}
+

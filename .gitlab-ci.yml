@@ -1,0 +1,19 @@
+
+# Define pipeline stages (order matters: build → test → package)  
+stages:  
+  - build  
+ 
+# Job 1: Build the project (compile source code)  
+build:  
+  stage: build
+  image: maven:3.9.3-eclipse-temurin-17
+  environment: DEV
+  tags:
+    - eusurvey
+  script:  
+    - echo "Building the project..."  
+    - mvn clean compile -U -Denvironment=oss -Dmaven.test.skip=true  # Clean previous builds and compile Java code  
+  cache:  
+    paths:  
+      - .m2/repository/  # Cache Maven dependencies to speed up future runs  
+ 
