@@ -1,0 +1,34 @@
+language: java
+dist: trusty
+jdk: oraclejdk8
+cache:
+  directories:
+    - '$HOME/.m2/repository'
+env:
+  global:
+  - EX_GLOBAL=${TRAVIS_BUILD_DIR}
+services:
+- mysql
+addons:
+  sonarcloud:
+    organization: eusurvey
+    token:
+      secure: "bsF///3gbvdKSPfaSWxQRQ9ryKjN1efhxgVDdxfbdWtstPGs4/lYd/adNDJCmGtbbH/4i7SgOb6Ileq9Fay/Q13BPJPKSt/TmBRCPNvWOkRdRbyRx3NE1S32Bq+4BDaPBXed+Ox85gs8bcPRG41YxrkpmcW4Q4M7zFfZCiJa5MiB9q01vBoff9K5dht0iVYXdvlONSwTDCilwaVxYtIBvPAZjiFiR2yF2jLFh9TK6zAQyq/hms2IhgSblRyQVHhSjNjJTD5I3DQxZnex/ZyBO7HQFOzx3arMkO28P3q+0GErsP82WBpME0cWIkNweNXI0NcNrhMF43LBO8l30ewmp855J/vAdrM3gnbotlVkEpIvZLByjToJtYGjoMLq7FzKhP1v2wxro88D37f9LV5r5vOaMD6PsHbIori7hHIhwVKBwVMKg1DDxAITDknx1Aao0cAGtTZ+7tAtI67hOpMAxbCrAyP7XkvomIo3c8zsozvsuMaZl3cW3iTu26kvtlgDLiV7IZVTvtvZgvnILEofiKn1D8OuiGbiV27CFZo0nVEnfk4MmTSEuAWfGIq9RyDXecm6O7+Ua+zvbG4R+bhtRbvYRCSCGhvIBGx+UOxk+FeZeuK4AxLV1aU/j4C1b2Qis5Od+toOAKv+tZ3pfSfTM5zlw9wb+YfuuGu/kye7L6k="
+before_install:
+- mysql -e "CREATE DATABASE eusurveydb;"
+- mysql -e "CREATE DATABASE eusurveyreportdb;"
+- mysql -e "CREATE USER 'eusurveyuser'@'localhost' IDENTIFIED BY 'eusurveyuser';"
+- mysql -e "CREATE USER 'eusurveyruser'@'localhost' IDENTIFIED BY 'eusurveyruser';"
+- mysql -e "GRANT ALL PRIVILEGES ON eusurveydb.* TO 'eusurveyuser'@'localhost';"
+- mysql -e "GRANT ALL PRIVILEGES ON eusurveyreportdb.* TO 'eusurveyruser'@'localhost';"
+- mysql -e "GRANT EVENT ON eusurveydb.* TO 'eusurveyuser'@'localhost' IDENTIFIED BY 'eusurveyuser';"
+- mysql -e "SET GLOBAL event_scheduler = ON;"
+- mysql -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+- mysql -e "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+install: true
+jobs:
+  include:
+  - stage: Tests
+    script:
+    - mvn clean package -Denvironment=oss
+    - sonar-scanner
