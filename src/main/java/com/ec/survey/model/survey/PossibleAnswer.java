@@ -1,0 +1,179 @@
+package com.ec.survey.model.survey;
+
+import com.ec.survey.model.ECFProfile;
+import com.ec.survey.tools.Tools;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.owasp.esapi.errors.ValidationException;
+
+import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Represents an answer option inside a (single or multiple) choice question.
+ */
+@Entity
+@Cacheable
+@Cache(usage = CacheConcurrencyStrategy.NONSTRICT_READ_WRITE)
+public class PossibleAnswer extends Element {
+	
+	private static final long serialVersionUID = 1L;
+	private int questionId;
+	private DependencyItem dependentElements = new DependencyItem();
+	private String savedDependentElementsString = "";
+	private ScoringItem scoring;
+	private ECFProfile ecfProfile;
+	private Integer ecfScore;
+	private Boolean exclusive;
+		
+	@Column(name="QUESTION_ID")
+	public int getQuestionId() {
+		return questionId;
+	}
+	public void setQuestionId(int questionId) {
+		this.questionId = questionId;
+	}
+	
+	public PossibleAnswer copy(String fileDir) throws ValidationException
+	{
+		PossibleAnswer copy = new PossibleAnswer();
+		copy.setUniqueId(getUniqueId());
+		copy.setShortname(this.getShortname());
+		copy.setSourceId(this.getId());
+		copy.setTitle(Tools.filterHTML(this.getTitle()));
+		copy.setPosition(this.getPosition());
+		copy.setEcfProfile(this.getEcfProfile());
+		copy.setEcfScore(this.ecfScore);
+		copy.setExclusive(exclusive);
+		
+		if (scoring != null) copy.setScoring(scoring.copy());
+		
+		return copy;
+	}
+
+	@OneToOne(cascade = CascadeType.ALL)
+	public DependencyItem getDependentElements() {
+		return dependentElements;
+	}
+	public void setDependentElements(DependencyItem dependentElements) {
+		this.dependentElements = dependentElements;
+	}
+	
+	@OneToOne(cascade = CascadeType.ALL)
+	@JoinColumn(name="id_score", nullable=true)
+	public ScoringItem getScoring() {
+		return scoring;
+	}
+	public void setScoring(ScoringItem scoring) {
+		this.scoring = scoring;
+	}
+
+	/**
+	 * An ECF Question is either on a competency or a profile
+	 */
+	@OneToOne
+	@JoinColumn(name="ECF_PROFILE", nullable = true)    
+	public ECFProfile getEcfProfile() {
+		return ecfProfile;
+	}	
+	public void setEcfProfile(ECFProfile ecfProfile) {
+		this.ecfProfile = ecfProfile;
+	}
+	
+	public Integer getEcfScore() {
+		return ecfScore;
+	}
+	public void setEcfScore(Integer ecfScore) {
+		this.ecfScore = ecfScore;
+	}
+	
+	@Column(name="EXCLUSIVE")
+	public Boolean getExclusive() {
+		return exclusive;
+	}
+	public void setExclusive(Boolean exclusive) {
+		this.exclusive = exclusive == null ? false : exclusive;
+	}
+	
+	@Transient
+	public String getDependentElementsString()
+	{
+		StringBuilder s = new StringBuilder(savedDependentElementsString);
+		for (Element element : dependentElements.getDependentElements())
+		{
+			s.append(element.getId()).append(";");
+		}
+		return s.toString();
+	}
+	
+	@Transient
+	public String getTitleForDisplayMode(Integer displayMode)
+	{
+		if (displayMode != null)
+		{
+			switch (displayMode)
+			{
+				case 0:
+					return this.getTitle();
+				case 1:
+					return this.getShortname();
+				case 2:
+					return this.getShortname() + " - " + this.getTitle();
+				case 3:
+					return this.getTitle() + " (" + this.getShortname() + ")";
+				default:
+					break;
+			}
+		}
+		return this.getTitle();
+	}
+	
+	@Transient
+	public String getDependentElementsUIDString()
+	{
+		List<String> list = new ArrayList<>();
+
+		for (Element element : dependentElements.getDependentElements())
+		{
+			list.add(element.getUniqueId());
+		}
+
+		Collections.sort(list);
+		
+		StringBuilder s = new StringBuilder();
+		for (String uid : list)
+		{
+			s.append(uid).append(";");
+		}
+		
+		return s.toString();
+	}
+	
+	public void clearForJSON()
+	{
+		savedDependentElementsString = getDependentElementsString();
+		dependentElements.getDependentElements().clear();
+	}
+	
+	@Override
+	public boolean differsFrom(Element possibleAnswer) {
+		PossibleAnswer other = (PossibleAnswer)possibleAnswer;		
+		
+		if (!getTitle().equals(other.getTitle()))
+			return true;
+		if (!getDependentElementsUIDString()
+				.equals(other.getDependentElementsUIDString()))
+			return true;
+		if (!Tools.isEqual(getShortname(),
+				other.getShortname()))
+			return true;
+
+		if (getScoring() != null && getScoring()
+				.differsFrom(other.getScoring())) {
+			return true;
+		}
+		return false;
+	}
+}
